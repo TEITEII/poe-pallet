@@ -20,7 +20,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
        
         ClaimCreated(T::AccountId, Vec<u8>),
-    
+    	ClaimTransfer(T::AccountId,Vec<u8>,T::AccountId),
         ClaimRevoked(T::AccountId, Vec<u8>),
     }
 
@@ -46,7 +46,7 @@ pub mod pallet {
 
     #[pallet::call]  
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(1_000)]
+		#[pallet::weight(10_000)]
 		pub(super) fn create_claim(
 			origin: OriginFor<T>,
 			claim: Vec<u8>,
@@ -65,6 +65,27 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::weight(10_000)]
+        	pub fn transfer_claim(
+            		origin: OriginFor<T>,
+            		claim: Vec<u8>,
+			new_owner: T::AccountId,
+   
+       		 ) -> DispatchResultWithPostInfo {
+
+            		let sender = ensure_signed(origin)?;
+
+			let (owner, _) = Proofs::<T>::get(&claim).ok_or(Error::<T>::NoSuchClaim)?;
+
+			ensure!(sender == owner, Error::<T>::NotClaimOwner);
+
+			Proofs::<T>::mutate(&claim,|v|*v = Some((new_owner.clone(),frame_system::Pallet::<T>::block_number()));
+
+			Self::deposit_event(Event::ClaimTransfer(sender,claim,new_owner));
+
+			Ok(().into())
+		}
+			 
 		#[pallet::weight(10_000)]
 		fn revoke_claim(
 			origin: OriginFor<T>,
